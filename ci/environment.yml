@@ -1,7 +1,26 @@
-name: xdev-project-dev
+name: onets
 channels:
   - conda-forge
-  - nodefaults
 dependencies:
-  - pytest-cov
+  - codecov
+  - dask
+  - jupyter
+  - jupyter-book
+  - jupyter_client==6.1.12
+  - jupyterlab
+  - matplotlib
+  - myst-nb
+  - nbformat
+  - nbsphinx
+  - nc-time-axis
+  - netcdf4
+  - numpydoc
+  - pip
   - pre-commit
+  - pytest
+  - pytest-cov
+  - scipy
+  - xarray
+  - pip:
+      - sphinx-click
+      - sphinxcontrib-autoyaml

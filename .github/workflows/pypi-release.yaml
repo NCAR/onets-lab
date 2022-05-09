@@ -8,7 +8,7 @@ on:
 jobs:
   build-artifacts:
     runs-on: ubuntu-latest
-    if: github.repository == 'ncar-xdev/python-project-template'
+    if: github.repository == 'ncar/onets-lab'
     steps:
       - uses: actions/checkout@v3
         with:
@@ -33,7 +33,7 @@ jobs:
         run: |
           python -m twine check dist/*
           pwd
-          if [ -f dist/xdev-project-0.0.0.tar.gz ]; then
+          if [ -f dist/onets-lab-0.0.0.tar.gz ]; then
             echo "❌ INVALID VERSION NUMBER"
             exit 1
           else

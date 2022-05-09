@@ -1,0 +1,114 @@
+class junk:
+    def run(
+        self,
+        t_final_days,
+        state_init,
+        init_option="input",
+        init_file=None,
+        dt=1.0,
+        forcing=None,
+        method="Radau",
+        rtol=1e-3,
+        atol=1e-3,
+        return_only_state=False,
+    ):
+        """Integrate the model in time.
+
+        Parameters
+        ----------
+        t_final_days : numeric
+           Final time value in days.
+
+        state_init : numpy.array
+           Initial state with dimensions [nboxes, ntracers]
+
+        forcing : xarray.Dataset, optional
+           Forcing data defined with `time` coordinate.
+
+        init_option : string, optional [default='input']
+            Initialization method:
+              - 'input': use the `state_init` as passed in
+              - 'fsolve': use scipy.optimize.fsolve to compute cyclostationary
+                          equilibrium, where `state_init` provides an initial
+                          guess.
+
+        init_file : string, optional [default=None]
+            File name from which to read initial state or to which to write
+            initial state following 'fsolve' spinup.
+
+        Returns
+        -------
+        out : xarray.Dataset
+           Model solution.
+        """
+        nt = np.int(t_final_days / dt)
+
+        # time axis
+        eval_time = np.arange(0.0, t_final_days + dt, dt) / self.convert_model_to_user_time
+
+        # set forcing
+        if forcing is not None:
+            self.forcing = forcing
+
+        run_kwargs = dict(
+            t_final_days=t_final_days,
+            dt=dt,
+            forcing=forcing,
+            method=method,
+            rtol=rtol,
+            atol=atol,
+        )
+
+        state_init = self._init(
+            state_init=state_init,
+            init_option=init_option,
+            init_file=init_file,
+            **run_kwargs,
+        )
+
+        self._init_diags()
+
+        # solve the model
+        soln = solve_ivp(
+            self.compute_tendencies,
+            t_span=[eval_time[0], eval_time[-1]],
+            t_eval=eval_time,
+            y0=self.state,
+            method=method,
+            rtol=rtol,
+            atol=atol,
+        )
+
+        if not soln.success:
+            raise Exception(soln.message)
+
+        soln_state = soln.y.T
+        soln_time = soln.t * self.convert_model_to_user_time
+
+        if return_only_state:
+            return soln_state
+
+        time_coord = xr.DataArray(soln_time[1:], dims=("time"), attrs={"units": "days"})
+        box_coord = xr.DataArray(self.boxes, dims=("box"))
+
+        output = xr.Dataset(coords={"time": time_coord, "box": box_coord})
+
+        for i, tracer in enumerate(self.tracers):
+            output[tracer] = xr.DataArray(
+                soln_state[1:, self.ind[tracer]],
+                dims=("time", "box"),
+                attrs={"units": self.units_tracer, "long_name": tracer},
+                coords={"time": time_coord, "box": box_coord},
+            )
+
+        # get diagnostic quantities by re-calling `compute_tendencies`
+        for key, val in self.diag_definitions.items():
+            output[key] = xr.DataArray(np.empty(nt), **val)
+
+        for i in range(1, len(soln_time)):
+            t = soln_time[i] / self.convert_model_to_user_time
+            diag_t = self.compute_tendencies(t, soln_state[i, :], return_diags=True)
+            for key, val in diag_t.items():
+                output[key].data[i - 1] = np.array(val)
+
+        return output

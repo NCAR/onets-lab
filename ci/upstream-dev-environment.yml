@@ -1,4 +1,4 @@
-name: xdev-project-dev
+name: dev-onets-lab-upstream
 channels:
   - conda-forge
   - nodefaults
