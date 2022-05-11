@@ -30,7 +30,8 @@ def sim_single_box(nday, ic_data, do_spinup=False, **init_kwargs):
     if do_spinup:
         ds_eq = m.spinup(ic_data)
         ic_data = {k: ds_eq[k] for k in ic_data.keys()}
-
+        print(ic_data)
+        
     # run the model and return output dataset
     m.run(
         nday=nday,
@@ -431,7 +432,7 @@ class single_box(object):
         ventilation_flow_data = forcing_data['ventilation_flow']
 
         vol = area_data * h_data
-
+        
         # initialize tendency
         self.tendency_data[:, :] = 0.0
 
@@ -472,8 +473,8 @@ class single_box(object):
         # apply boundary flow
         if self.lventilate:
             self.tendency_data[:, :] += (
-                ventilation_flow_data * self.tracer_boundary_conc
-                - ventilation_flow_data * self.state_data
+                ventilation_flow_data * (self.tracer_boundary_conc
+                -  self.state_data)
             )  # m^3/s * mmol/m^3 --> mmol/s
 
         # normalize by volume
